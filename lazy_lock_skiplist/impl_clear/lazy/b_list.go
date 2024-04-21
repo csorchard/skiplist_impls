@@ -197,12 +197,13 @@ func (this *SkipList) Remove(key interface{}) (value interface{}, ok bool) {
 				}
 				nodeToDelete.marked = true
 				isMarked = true
-				nodeToDelete.lock.Unlock()
 			}
 
 			if this.tryRemove(nodeToDelete, preds, succs) {
+				nodeToDelete.lock.Unlock()
 				break
 			}
+			nodeToDelete.lock.Unlock()
 		} else {
 			return nil, false
 		}
