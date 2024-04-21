@@ -2,7 +2,7 @@ package lazyskiplist
 
 import (
 	"reflect"
-	"skiplist/lazy_lock_skiplist/impl_clear/lib"
+	"skiplist/b_lazy_lock_skiplist/impl_clear/lib"
 	"testing"
 )
 

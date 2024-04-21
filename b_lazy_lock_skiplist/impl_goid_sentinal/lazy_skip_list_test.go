@@ -2,7 +2,7 @@ package lazyskiplist_test
 
 import (
 	"fmt"
-	lazyskiplist "skiplist/lazy_lock_skiplist/impl_goid_sentinal"
+	lazyskiplist "skiplist/b_lazy_lock_skiplist/impl_goid_sentinal"
 )
 
 func Example() {
