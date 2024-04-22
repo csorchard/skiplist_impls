@@ -10,33 +10,39 @@ import (
 const (
 	MaxLevel = 16
 	P        = 0.5
-	NodeSize = uint64(unsafe.Sizeof(node{}))
 )
 
-type node struct {
+type Node struct {
 	key  uint64
-	next [MaxLevel]*node
+	next [MaxLevel]uint64 // Store offsets instead of pointers
 }
 
-type SkipList struct {
-	head     *node
+type Skiplist struct {
+	head     uint64 // Store offset of head
 	maxLevel int
 	arena    *Arena
 }
 
-func NewSkiplist(arena *Arena) *SkipList {
-	head := (*node)(arena.Allocate(uint64(NodeSize)))
-	if head == nil {
-		panic("Arena out of space")
+func NewSkiplist(arena *Arena) *Skiplist {
+	headOffset, err := arena.Alloc(uint64(unsafe.Sizeof(Node{})))
+	if err != nil {
+		panic("failed to allocate head node")
 	}
-	return &SkipList{
-		head:     head,
+	head := (*Node)(unsafe.Pointer(&arena.buf[headOffset]))
+	*head = Node{} // Initialize the head node
+
+	return &Skiplist{
+		head:     headOffset,
 		maxLevel: 1,
 		arena:    arena,
 	}
 }
 
-func (sl *SkipList) randomLevel() int {
+func (sl *Skiplist) getNode(offset uint64) *Node {
+	return (*Node)(unsafe.Pointer(&sl.arena.buf[offset]))
+}
+
+func (sl *Skiplist) randomLevel() int {
 	level := 1
 	for rand.Float64() < P && level < MaxLevel {
 		level++
@@ -44,12 +50,12 @@ func (sl *SkipList) randomLevel() int {
 	return level
 }
 
-func (sl *SkipList) Insert(key uint64) {
-	update := make([]*node, MaxLevel)
+func (sl *Skiplist) Insert(key uint64) {
+	update := [MaxLevel]uint64{}
 	x := sl.head
 	for i := sl.maxLevel - 1; i >= 0; i-- {
-		for x.next[i] != nil && x.next[i].key < key {
-			x = x.next[i]
+		for sl.getNode(x).next[i] != 0 && sl.getNode(sl.getNode(x).next[i]).key < key {
+			x = sl.getNode(x).next[i]
 		}
 		update[i] = x
 	}
@@ -62,26 +68,28 @@ func (sl *SkipList) Insert(key uint64) {
 		sl.maxLevel = level
 	}
 
-	x = (*node)(sl.arena.Allocate(NodeSize))
-	if x == nil {
-		panic("Out of space")
+	nodeOffset, err := sl.arena.Alloc(uint64(unsafe.Sizeof(Node{})))
+	if err != nil {
+		panic("failed to allocate new node")
 	}
-	x.key = key
+	newNode := sl.getNode(nodeOffset)
+	newNode.key = key
+
 	for i := 0; i < level; i++ {
-		x.next[i] = update[i].next[i]
-		update[i].next[i] = x
+		newNode.next[i] = sl.getNode(update[i]).next[i]
+		sl.getNode(update[i]).next[i] = nodeOffset
 	}
 }
 
-func (sl *SkipList) Contains(key uint64) bool {
+func (sl *Skiplist) Contains(key uint64) bool {
 	x := sl.head
 	for i := sl.maxLevel - 1; i >= 0; i-- {
-		for x.next[i] != nil && x.next[i].key < key {
-			x = x.next[i]
+		for sl.getNode(x).next[i] != 0 && sl.getNode(sl.getNode(x).next[i]).key < key {
+			x = sl.getNode(x).next[i]
 		}
 	}
-	x = x.next[0]
-	return x != nil && x.key == key
+	x = sl.getNode(x).next[0]
+	return x != 0 && sl.getNode(x).key == key
 }
 
 func main() {
@@ -89,7 +97,6 @@ func main() {
 	arena := NewArena(1024 * 1024) // 1MB arena
 	sl := NewSkiplist(arena)
 
-	// Example Usage
 	sl.Insert(3)
 	sl.Insert(6)
 	sl.Insert(7)
