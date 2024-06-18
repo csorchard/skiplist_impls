@@ -46,34 +46,36 @@ func (sl *SkipList) randomLevel() int {
 }
 
 func (sl *SkipList) Insert(value int) {
-	update := make([]*Node, MaxLevel)
+	pred := make([]*Node, MaxLevel)
 	current := sl.head
 
+	// 1. Find the predecessors
 	for i := sl.level - 1; i >= 0; i-- {
 		// < value is important. it ensures we only get predecessors
 		for current.next[i] != nil && current.next[i].value < value {
 			current = current.next[i]
 		}
-		update[i] = current
+		pred[i] = current
 	}
 
 	current = current.next[0]
 	if current == nil || current.value != value {
 		lvl := sl.randomLevel()
 
-		// fill the new higher levels with value as head.
+		// Corner Case: fill the new higher levels with value as head.
 		if lvl > sl.level {
 			for i := sl.level; i < lvl; i++ {
-				update[i] = sl.head
+				pred[i] = sl.head
 			}
 			sl.level = lvl
 		}
 
+		// 3. Link the new node
 		newNode := NewNode(value, lvl)
 		for i := 0; i < lvl; i++ {
 			// kind of like linked list remove/update element
-			newNode.next[i] = update[i].next[i]
-			update[i].next[i] = newNode
+			newNode.next[i] = pred[i].next[i]
+			pred[i].next[i] = newNode
 		}
 	}
 }
