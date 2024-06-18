@@ -336,31 +336,33 @@ func (it *Iterator) trySetValue(new uint64) error {
 }
 
 func (it *Iterator) setValueIfDeleted(nd *node, val []byte, meta uint16) error {
-	var new uint64
+	var newValOffsetSz uint64
 	var err error
 
 	for {
-		old := atomic.LoadUint64(&nd.value)
+		oldValOffsetSz := atomic.LoadUint64(&nd.value)
 
-		if old != deletedVal {
-			it.value = old
+		// if node is not deleted, then return RecordExists
+		if oldValOffsetSz != deletedVal {
+			it.value = oldValOffsetSz
 			it.nd = nd
 			return ErrRecordExists
 		}
 
-		if new == 0 {
-			new, err = it.list.allocVal(val, meta)
+		// allocate new value only once in the Arena
+		if newValOffsetSz == 0 {
+			newValOffsetSz, err = it.list.allocVal(val, meta)
 			if err != nil {
 				return err
 			}
 		}
 
-		if atomic.CompareAndSwapUint64(&nd.value, old, new) {
+		if atomic.CompareAndSwapUint64(&nd.value, oldValOffsetSz, newValOffsetSz) {
 			break
 		}
 	}
 
-	it.value = new
+	it.value = newValOffsetSz
 	it.nd = nd
 	return err
 }
