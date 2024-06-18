@@ -166,7 +166,7 @@ func (it *Iterator) Add(key []byte, val []byte, meta uint16) error {
 		// |                |     |            |<----| nextPrevOffset |
 		// +----------------+     +------------+     +----------------+
 		//
-		// 1. Initialize prevOffset and nextOffset to point to prev and next.
+		// 1. Initialize prevOffset and nextOffset of new node to point to prev and next.
 		// 2. CAS prevNextOffset to repoint from next to nd.
 		// 3. CAS nextPrevOffset to repoint from prev to nd.
 		for {
@@ -174,7 +174,7 @@ func (it *Iterator) Add(key []byte, val []byte, meta uint16) error {
 			nextOffset := it.arena.GetPointerOffset(unsafe.Pointer(next))
 			nd.tower[i].init(prevOffset, nextOffset)
 
-			// Check whether next has an updated link to prev. If it does not,
+			// Check whether next has the latest link to prev. If it does not,
 			// that can mean one of two things:
 			//   1. The thread that added the next node hasn't yet had a chance
 			//      to add the prev link (but will shortly).
